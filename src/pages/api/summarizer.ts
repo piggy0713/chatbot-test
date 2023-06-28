@@ -3,7 +3,7 @@ import { templates } from "./templates";
 import { PromptTemplate } from "langchain/prompts";
 import { LLMChain } from "langchain/chains";
 import Bottleneck from "bottleneck";
-import { StructuredOutputParser } from "langchain/output_parsers";
+// import { StructuredOutputParser } from "langchain/output_parsers";
 
 const llm = new OpenAI({
   concurrency: 10,
@@ -13,18 +13,17 @@ const llm = new OpenAI({
 
 const { summarizerTemplate, summarizerDocumentTemplate } = templates;
 
-const parser = StructuredOutputParser.fromNamesAndDescriptions({
-  answer: "answer to the user's question",
-  source: "source used to answer the user's question, should be a website.",
-});
+// const parser = StructuredOutputParser.fromNamesAndDescriptions({
+//   answer: "answer to the user's question",
+//   source: "source used to answer the user's question, should be a website.",
+// });
 
-const formatInstructions = parser.getFormatInstructions();
+// const formatInstructions = parser.getFormatInstructions();
 
 const limiter = new Bottleneck({
   minTime: 5050,
 });
 
-console.log(summarizerDocumentTemplate.length);
 const chunkSubstr = (str: string, size: number) => {
   const numChunks = Math.ceil(str.length / size);
   const chunks = new Array(numChunks);
@@ -45,7 +44,6 @@ const summarize = async ({
   inquiry?: string;
   onSummaryDone?: Function;
 }) => {
-  console.log("summarizing ", document.length);
   const promptTemplate = new PromptTemplate({
     template: inquiry ? summarizerTemplate : summarizerDocumentTemplate,
     inputVariables: inquiry ? ["document", "inquiry"] : ["document"],
@@ -62,12 +60,10 @@ const summarize = async ({
       inquiry,
     });
 
-    console.log(result);
-
     onSummaryDone && onSummaryDone(result.text);
     return result.text;
   } catch (e) {
-    console.log(e);
+    throw new Error(e as string);
   }
 };
 
@@ -88,7 +84,6 @@ const summarizeLongDocument = async ({
     : summarizerDocumentTemplate.length;
   try {
     if (document.length + templateLength > 4000) {
-      console.log("document is long and has to be shortened", document.length);
       const chunks = chunkSubstr(document, 4000 - templateLength - 1);
       let summarizedChunks: string[] = [];
       summarizedChunks = await Promise.all(
@@ -111,17 +106,14 @@ const summarizeLongDocument = async ({
       );
 
       const result = summarizedChunks.join("\n");
-      console.log(result.length);
 
       if (result.length + templateLength > 4000) {
-        console.log("document is STILL long and has to be shortened further");
         return await summarizeLongDocument({
           document: result,
           inquiry,
           onSummaryDone,
         });
       } else {
-        console.log("done");
         return result;
       }
     } else {

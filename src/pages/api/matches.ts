@@ -11,15 +11,12 @@ const getMatchesFromEmbeddings = async (
   pinecone: PineconeClient,
   topK: number
 ): Promise<ScoredVector[]> => {
-  console.log("pinecone", pinecone);
-  console.log("embeddings", embeddings);
-  console.log("topK", topK);
   if (!process.env.PINECONE_INDEX_NAME) {
     throw new Error("PINECONE_INDEX_NAME is not set");
   }
 
   const index = pinecone.Index(process.env.PINECONE_INDEX_NAME);
-  console.log("index", process.env.PINECONE_INDEX_NAME);
+
   const queryRequest = {
     vector: embeddings,
     topK,
@@ -30,7 +27,6 @@ const getMatchesFromEmbeddings = async (
       queryRequest,
     });
 
-    console.log("queryResult", queryResult);
     return (
       queryResult.matches?.map((match) => ({
         ...match,
@@ -38,7 +34,6 @@ const getMatchesFromEmbeddings = async (
       })) || []
     );
   } catch (e) {
-    console.log("Error querying embeddings: ", e);
     throw new Error(`Error querying embeddings: ${e}`);
   }
 };

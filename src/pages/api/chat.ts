@@ -65,10 +65,6 @@ const handleRequest = async ({
     });
     const inquiry = inquiryChainResult.text;
 
-    console.log(inquiry);
-
-    console.log(inquiry);
-
     // Embed the user's intent and query the Pinecone index
     const embedder = new OpenAIEmbeddings({
       modelName: "text-embedding-ada-002",
@@ -95,8 +91,6 @@ const handleRequest = async ({
           })
         )
       );
-
-    console.log(urls);
 
     const docs =
       matches &&
