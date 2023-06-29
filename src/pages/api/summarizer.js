@@ -6,9 +6,10 @@ import Bottleneck from "bottleneck";
 // import { StructuredOutputParser } from "langchain/output_parsers";
 
 const llm = new OpenAI({
-  concurrency: 10,
-  temperature: 0,
+  concurrency: 15,
+  temperature: 0.2,
   modelName: "gpt-3.5-turbo",
+  openAIApiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
 });
 
 const { summarizerTemplate, summarizerDocumentTemplate } = templates;
@@ -24,7 +25,7 @@ const limiter = new Bottleneck({
   minTime: 5050,
 });
 
-const chunkSubstr = (str: string, size: number) => {
+const chunkSubstr = (str, size) => {
   const numChunks = Math.ceil(str.length / size);
   const chunks = new Array(numChunks);
 
@@ -35,15 +36,7 @@ const chunkSubstr = (str: string, size: number) => {
   return chunks;
 };
 
-const summarize = async ({
-  document,
-  inquiry,
-  onSummaryDone,
-}: {
-  document: string;
-  inquiry?: string;
-  onSummaryDone?: Function;
-}) => {
+const summarize = async ({ document, inquiry, onSummaryDone }) => {
   const promptTemplate = new PromptTemplate({
     template: inquiry ? summarizerTemplate : summarizerDocumentTemplate,
     inputVariables: inquiry ? ["document", "inquiry"] : ["document"],
@@ -63,21 +56,13 @@ const summarize = async ({
     onSummaryDone && onSummaryDone(result.text);
     return result.text;
   } catch (e) {
-    throw new Error(e as string);
+    throw new Error(e);
   }
 };
 
 const rateLimitedSummarize = limiter.wrap(summarize);
 
-const summarizeLongDocument = async ({
-  document,
-  inquiry,
-  onSummaryDone,
-}: {
-  document: string;
-  inquiry?: string;
-  onSummaryDone?: Function;
-}): Promise<string> => {
+const summarizeLongDocument = async ({ document, inquiry, onSummaryDone }) => {
   // Chunk document into 4000 character chunks
   const templateLength = inquiry
     ? summarizerTemplate.length
@@ -85,7 +70,7 @@ const summarizeLongDocument = async ({
   try {
     if (document.length + templateLength > 4000) {
       const chunks = chunkSubstr(document, 4000 - templateLength - 1);
-      let summarizedChunks: string[] = [];
+      let summarizedChunks = [];
       summarizedChunks = await Promise.all(
         chunks.map(async (chunk) => {
           let result;
@@ -120,7 +105,7 @@ const summarizeLongDocument = async ({
       return document;
     }
   } catch (e) {
-    throw new Error(e as string);
+    throw new Error(e);
   }
 };
 

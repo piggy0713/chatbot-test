@@ -1,4 +1,3 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import { PineconeClient } from "@pinecone-database/pinecone";
 import * as Ably from "ably";
 import { CallbackManager } from "langchain/callbacks";
@@ -7,33 +6,30 @@ import { ChatOpenAI } from "langchain/chat_models/openai";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 import { OpenAI } from "langchain/llms/openai";
 import { PromptTemplate } from "langchain/prompts";
-import type { NextApiRequest, NextApiResponse } from "next";
 import { uuid } from "uuidv4";
 import { summarizeLongDocument } from "./summarizer";
 import { ConversationLog } from "./conversationLog";
 import { Metadata, getMatchesFromEmbeddings } from "./matches";
 import { templates } from "./templates";
 
-const llm = new OpenAI({});
-let pinecone: PineconeClient | null = null;
+const llm = new OpenAI({
+  temperature: 0.9,
+  modelName: "gpt-3.5-turbo",
+  openAIApiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+});
+let pinecone = null;
 
 const initPineconeClient = async () => {
   pinecone = new PineconeClient();
   await pinecone.init({
-    environment: process.env.PINECONE_ENVIRONMENT!,
-    apiKey: process.env.PINECONE_API_KEY!,
+    environment: process.env.PINECONE_ENVIRONMENT,
+    apiKey: process.env.PINECONE_API_KEY,
   });
 };
 
 const ably = new Ably.Realtime({ key: process.env.ABLY_API_KEY });
 
-const handleRequest = async ({
-  prompt,
-  userId,
-}: {
-  prompt: string;
-  userId: string;
-}) => {
+const handleRequest = async ({ prompt, userId }) => {
   if (!pinecone) {
     await initPineconeClient();
   }
@@ -78,14 +74,14 @@ const handleRequest = async ({
       },
     });
 
-    const matches = await getMatchesFromEmbeddings(embeddings, pinecone!, 2);
+    const matches = await getMatchesFromEmbeddings(embeddings, pinecone, 2);
 
     const urls =
       matches &&
       Array.from(
         new Set(
           matches.map((match) => {
-            const metadata = match.metadata as Metadata;
+            const metadata = match.metadata;
             const { url } = metadata;
             return url;
           })
@@ -96,7 +92,7 @@ const handleRequest = async ({
       matches &&
       Array.from(
         matches.reduce((map, match) => {
-          const metadata = match.metadata as Metadata;
+          const metadata = match.metadata;
           const { text, url } = metadata;
           if (!map.has(url)) {
             map.set(url, text);
@@ -163,15 +159,11 @@ const handleRequest = async ({
       urls,
     });
   } catch (error) {
-    //@ts-ignore
-    console.error(error);
+    throw error;
   }
 };
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req, res) {
   const { body } = req;
   const { prompt, userId } = body;
   await handleRequest({ prompt, userId });

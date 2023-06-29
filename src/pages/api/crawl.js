@@ -1,4 +1,3 @@
-import { NextApiRequest, NextApiResponse } from "next";
 import { PineconeClient, Vector } from "@pinecone-database/pinecone";
 import { Crawler, Page } from "../../crawler";
 import { Document } from "langchain/document";
@@ -12,38 +11,31 @@ const limiter = new Bottleneck({
   minTime: 50,
 });
 
-let pinecone: PineconeClient | null = null;
+let pinecone = null;
 
 const initPineconeClient = async () => {
   pinecone = new PineconeClient();
   console.log("init pinecone");
   await pinecone.init({
-    environment: process.env.PINECONE_ENVIRONMENT!,
-    apiKey: process.env.PINECONE_API_KEY!,
+    environment: process.env.PINECONE_ENVIRONMENT,
+    apiKey: process.env.PINECONE_API_KEY,
   });
-};
-
-type Response = {
-  message: string;
 };
 
 // The TextEncoder instance enc is created and its encode() method is called on the input string.
 // The resulting Uint8Array is then sliced, and the TextDecoder instance decodes the sliced array in a single line of code.
-const truncateStringByBytes = (str: string, bytes: number) => {
+const truncateStringByBytes = (str, bytes) => {
   const enc = new TextEncoder();
   return new TextDecoder("utf-8").decode(enc.encode(str).slice(0, bytes));
 };
 
-const sliceIntoChunks = (arr: Vector[], chunkSize: number) => {
+const sliceIntoChunks = (arr, chunkSize) => {
   return Array.from({ length: Math.ceil(arr.length / chunkSize) }, (_, i) =>
     arr.slice(i * chunkSize, (i + 1) * chunkSize)
   );
 };
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req, res) {
   if (!process.env.PINECONE_INDEX_NAME) {
     res.status(500).json({ message: "PINECONE_INDEX_NAME not set" });
     return;
@@ -51,10 +43,9 @@ export default async function handler(
 
   const { query } = req;
   const { urls: urlString, limit, indexName, summmarize } = query;
-  const urls = (urlString as string).split(",");
-  const crawlLimit = parseInt(limit as string) || 100;
-  const pineconeIndexName =
-    (indexName as string) || process.env.PINECONE_INDEX_NAME!;
+  const urls = urlString.split(",");
+  const crawlLimit = parseInt(limit) || 100;
+  const pineconeIndexName = indexName || process.env.PINECONE_INDEX_NAME;
   const shouldSummarize = summmarize === "true";
 
   if (!pinecone) {
@@ -70,7 +61,7 @@ export default async function handler(
   }
 
   const crawler = new Crawler(urls, crawlLimit, 200);
-  const pages = (await crawler.start()) as Page[];
+  const pages = await crawler.start();
 
   const documents = await Promise.all(
     pages.map(async (row) => {
@@ -105,7 +96,7 @@ export default async function handler(
   let counter = 0;
 
   //Embed the documents
-  const getEmbedding = async (doc: Document) => {
+  const getEmbedding = async (doc) => {
     const embedding = await embedder.embedQuery(doc.pageContent);
     console.log(doc.pageContent);
     console.log("got embedding", embedding.length);
@@ -118,30 +109,30 @@ export default async function handler(
       values: embedding,
       metadata: {
         chunk: doc.pageContent,
-        text: doc.metadata.text as string,
-        url: doc.metadata.url as string,
+        text: doc.metadata.text,
+        url: doc.metadata.url,
       },
-    } as Vector;
+    };
   };
   const rateLimitedGetEmbedding = limiter.wrap(getEmbedding);
   process.stdout.write("100%\r");
   console.log("done embedding");
 
-  let vectors = [] as Vector[];
+  let vectors = [];
 
   try {
-    vectors = (await Promise.all(
+    vectors = await Promise.all(
       documents.flat().map((doc) => rateLimitedGetEmbedding(doc))
-    )) as unknown as Vector[];
+    );
     const chunks = sliceIntoChunks(vectors, 10);
     console.log(chunks.length);
 
     try {
       await Promise.all(
         chunks.map(async (chunk) => {
-          await index!.upsert({
+          await index.upsert({
             upsertRequest: {
-              vectors: chunk as Vector[],
+              vectors: chunk,
               namespace: "",
             },
           });
@@ -150,10 +141,9 @@ export default async function handler(
 
       res.status(200).json({ message: "Done" });
     } catch (e) {
-      console.log(e);
       res.status(500).json({ message: `Error ${JSON.stringify(e)}` });
     }
   } catch (e) {
-    console.log(e);
+    throw new Error(e);
   }
 }

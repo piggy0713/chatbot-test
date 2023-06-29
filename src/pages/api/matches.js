@@ -1,16 +1,6 @@
 import { PineconeClient, ScoredVector } from "@pinecone-database/pinecone";
 
-export type Metadata = {
-  url: string;
-  text: string;
-  chunk: string;
-};
-
-const getMatchesFromEmbeddings = async (
-  embeddings: number[],
-  pinecone: PineconeClient,
-  topK: number
-): Promise<ScoredVector[]> => {
+const getMatchesFromEmbeddings = async (embeddings, pinecone, topK) => {
   if (!process.env.PINECONE_INDEX_NAME) {
     throw new Error("PINECONE_INDEX_NAME is not set");
   }
@@ -30,7 +20,7 @@ const getMatchesFromEmbeddings = async (
     return (
       queryResult.matches?.map((match) => ({
         ...match,
-        metadata: match.metadata as Metadata,
+        metadata: match.metadata || {},
       })) || []
     );
   } catch (e) {

@@ -1,4 +1,3 @@
-import type { AppProps } from "next/app";
 import { configureAbly } from "@ably-labs/react-hooks";
 
 const prefix = process.env.API_ROOT || "";
@@ -12,6 +11,6 @@ configureAbly({
   clientId: clientId,
 });
 
-export default function App({ Component, pageProps }: AppProps) {
+export default function App({ Component, pageProps }) {
   return <Component {...pageProps} />;
 }

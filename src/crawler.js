@@ -1,29 +1,18 @@
-//@ts-ignore
 import * as Spider from "node-spider";
-//@ts-ignore
 import * as TurndownService from "turndown";
 import * as cheerio from "cheerio";
 import parse from "url-parse";
 const turndownService = new TurndownService();
 
-export type Page = {
-  url: string;
-  text: string;
-  title: string;
-};
 class Crawler {
-  pages: Page[] = [];
-  limit: number = 1000;
-  urls: string[] = [];
-  spider: Spider | null = {};
-  count: number = 0;
-  textLengthMinimum: number = 200;
+  pages;
+  limit;
+  urls;
+  spider;
+  count;
+  textLengthMinimum;
 
-  constructor(
-    urls: string[],
-    limit: number = 1000,
-    textLengthMinimum: number = 200
-  ) {
+  constructor(urls, limit, textLengthMinimum) {
     this.urls = urls;
     this.limit = limit;
     this.textLengthMinimum = textLengthMinimum;
@@ -33,7 +22,7 @@ class Crawler {
     this.spider = {};
   }
 
-  handleRequest = (doc: any) => {
+  handleRequest = (doc) => {
     const $ = cheerio.load(doc.res.body);
     $("script").remove();
     $("#hub-sidebar").remove();
@@ -43,7 +32,7 @@ class Crawler {
     const title = $("title").text() || $(".article-title").text();
     const html = $("body").html();
     const text = turndownService.turndown(html);
-    const page: Page = {
+    const page = {
       url: doc.url,
       text,
       title,
@@ -52,7 +41,7 @@ class Crawler {
       this.pages.push(page);
     }
 
-    doc.$("a").each((i: number, elem: any) => {
+    doc.$("a").each((i, elem) => {
       var href = doc.$(elem).attr("href")?.split("#")[0];
       var targetUrl = href && doc.resolve(href);
       // crawl more
@@ -82,7 +71,7 @@ class Crawler {
         addReferrer: false,
         xhr: false,
         keepAlive: false,
-        error: (err: any, url: string) => {
+        error: (err, url) => {
           reject(err);
         },
         // Called when there are no more requests

@@ -13,30 +13,14 @@ import {
   ConversationHeader,
   TypingIndicator,
 } from "@chatscope/chat-ui-kit-react";
-
 import styles from "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
 import { useChannel } from "@ably-labs/react-hooks";
-import { Types } from "ably";
 
-type ConversationEntry = {
-  message: string;
-  speaker: "bot" | "user";
-  date: Date;
-  id?: string;
-};
-
-type request = {
-  prompt: string;
-};
-
-const updateChatbotMessage = (
-  conversation: ConversationEntry[],
-  message: Types.Message
-): ConversationEntry[] => {
+const updateChatbotMessage = (conversation, message) => {
   const interactionId = message.data.interactionId;
 
   const updatedConversation = conversation.reduce(
-    (acc: ConversationEntry[], e: ConversationEntry) => [
+    (acc, e) => [
       ...acc,
       e.id === interactionId
         ? { ...e, message: e.message + message.data.token }
@@ -61,7 +45,7 @@ const updateChatbotMessage = (
 export default function Home() {
   const [text, setText] = useState("");
   const [extendedResult, updateExtendedResult] = useState(false);
-  const [conversation, setConversation] = useState<ConversationEntry[]>([]);
+  const [conversation, setConversation] = useState([]);
   const [botIsTyping, setBotIsTyping] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Waiting for query...");
 
