@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import getConfig from "next/config";
 
-const { publicRuntimeConfig } = getConfig();
-const { apiUrl } = publicRuntimeConfig;
+const { publicRuntimeConfig } = getConfig() || {};
+const { apiUrl } = publicRuntimeConfig || {};
 
 function MyComponent() {
   const [data, setData] = useState([]);
